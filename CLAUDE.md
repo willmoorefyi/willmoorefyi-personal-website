@@ -144,9 +144,29 @@ Visit http://localhost:3000
 
 ### Deployment to S3
 
+**Automated deployment (recommended):**
+
+```bash
+# 1. Authenticate with AWS SSO (required first)
+aws sso login --profile will-aws-admin
+
+# 2. Deploy (builds, uploads, invalidates CloudFront)
+npm run deploy
+```
+
+**Manual deployment (alternative):**
+
 ```bash
 aws s3 sync out/ s3://will.moore.fyi --delete
 ```
+
+**Configuration:**
+- AWS Profile: `will-aws-admin` (SSO-based)
+- S3 Bucket: `will.moore.fyi`
+- CloudFront Distribution: `E10BJV5LJCPKIE`
+- Region: `us-east-1`
+
+**Important**: AWS SSO sessions expire after several hours. If deployment fails with authentication errors, re-run `aws sso login --profile will-aws-admin`.
 
 **S3 Configuration Required**:
 - Static website hosting enabled

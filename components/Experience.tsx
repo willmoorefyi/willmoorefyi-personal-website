@@ -48,7 +48,7 @@ export default function Experience() {
                     <div className="flex items-start gap-4">
                       {/* Company Logo (if provided) */}
                       {exp.logo && (
-                        <div className="w-16 h-16 bg-white dark:bg-gray-800 rounded-xl flex items-center justify-center shadow-md flex-shrink-0">
+                        <div className="w-16 h-16 bg-white rounded-xl flex items-center justify-center shadow-md flex-shrink-0 dark:ring-1 dark:ring-gray-700">
                           <Image
                             src={exp.logo}
                             alt={`${exp.company} logo`}

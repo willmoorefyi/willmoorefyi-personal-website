@@ -2,6 +2,25 @@
 
 A modern, animated personal portfolio website built with Next.js, configured for static export and S3 hosting.
 
+**Live Site**: https://will.moore.fyi
+
+## Quick Reference
+
+```bash
+# Install
+npm install
+
+# Build
+npm run build
+
+# Test locally
+cd out && python3 -m http.server 3000
+
+# Deploy to production
+aws sso login --profile will-aws-admin  # Authenticate first
+npm run deploy                          # Then deploy
+```
+
 ## Features
 
 ✨ **Bold & Modern Design** - Vibrant gradients and smooth animations
@@ -59,6 +78,30 @@ npm run build
 ```
 
 This generates all static files in the `/out` directory, ready for S3 or any static host.
+
+### Deployment to AWS S3
+
+Deploy your site to production at https://will.moore.fyi:
+
+```bash
+# 1. Authenticate with AWS SSO
+aws sso login --profile will-aws-admin
+
+# 2. Deploy (build + upload + invalidate CloudFront)
+npm run deploy
+```
+
+The deployment script will:
+1. Build the static site
+2. Upload all files to S3 bucket `will.moore.fyi` (root level)
+3. Invalidate CloudFront cache for immediate updates
+
+**Requirements:**
+- AWS profile `will-aws-admin` configured in `~/.aws/config`
+- Active AWS SSO session (run `aws sso login --profile will-aws-admin`)
+- Permissions for S3 upload and CloudFront invalidation
+
+For detailed deployment instructions, troubleshooting, and manual deployment options, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Project Structure
 
@@ -154,115 +197,49 @@ Update your details in `/components/Hero.tsx` and `/components/Footer.tsx`:
 - Social media links (GitHub, LinkedIn)
 - Email address
 
-## Deployment to S3
+## Deployment Commands
 
-This site is configured for S3 static hosting.
+| Command | Description |
+|---------|-------------|
+| `npm run build` | Build static site to `/out` directory |
+| `npm run deploy` | Build + deploy to S3 + invalidate CloudFront |
+| `npm run deploy:only` | Deploy existing `/out` to S3 (skip build) |
 
-### Quick Deploy
+### Automated Deployment
+
+Deploy to production:
 
 ```bash
-# Build the site
-npm run build
+# 1. Authenticate with AWS SSO (required before deployment)
+aws sso login --profile will-aws-admin
 
-# Deploy to S3 (replace with your bucket name)
-aws s3 sync out/ s3://will.moore.fyi --delete
-
-# Set cache headers for assets
-aws s3 sync out/_next/ s3://will.moore.fyi/_next/ \
-  --cache-control "public, max-age=31536000, immutable" \
-  --delete
-
-# Set cache headers for HTML
-aws s3 sync out/ s3://will.moore.fyi \
-  --exclude "*" \
-  --include "*.html" \
-  --cache-control "public, max-age=0, must-revalidate"
+# 2. Deploy to production
+npm run deploy
 ```
 
-### S3 Bucket Configuration
+The `npm run deploy` command automatically:
+1. Builds the static site
+2. Uploads to S3 bucket `will.moore.fyi` (root level)
+3. Sets appropriate cache headers (HTML fresh, assets cached)
+4. Invalidates CloudFront cache for immediate updates
 
-#### Enable Static Website Hosting
+**Configuration:**
+- AWS Profile: `will-aws-admin` (SSO)
+- S3 Bucket: `will.moore.fyi`
+- CloudFront: `E10BJV5LJCPKIE`
+- Region: `us-east-1`
 
-1. Go to S3 Console → Your bucket → Properties
-2. Enable "Static website hosting"
-3. Set **Index document**: `index.html`
-4. Set **Error document**: `404.html`
+**Note**: AWS SSO sessions expire after several hours. If you get authentication errors, run `aws sso login --profile will-aws-admin` again.
 
-#### Bucket Policy (Public Access)
+For detailed deployment instructions and troubleshooting, see [DEPLOYMENT.md](./DEPLOYMENT.md).
 
-```json
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Sid": "PublicReadGetObject",
-      "Effect": "Allow",
-      "Principal": "*",
-      "Action": "s3:GetObject",
-      "Resource": "arn:aws:s3:::will.moore.fyi/*"
-    }
-  ]
-}
-```
+### Manual Deployment (Alternative)
 
-### CloudFront Setup (Recommended)
-
-For HTTPS and global CDN:
-
-1. **Create CloudFront Distribution**
-   - Origin: S3 bucket website endpoint
-   - Viewer Protocol Policy: Redirect HTTP to HTTPS
-   - Alternate Domain Names: `will.moore.fyi`
-   - SSL Certificate: Use ACM certificate
-
-2. **Configure Custom Error Responses**
-   - Error Code: 404
-   - Response Page Path: `/404.html`
-   - HTTP Response Code: 404
-
-3. **Route 53 DNS**
-   - Create A record (Alias)
-   - Point to CloudFront distribution
-
-### Automated Deployment with GitHub Actions
-
-Create `.github/workflows/deploy.yml`:
-
-```yaml
-name: Deploy to S3
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: actions/setup-node@v3
-        with:
-          node-version: '18'
-
-      - run: npm install
-      - run: npm run build
-
-      - name: Deploy to S3
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: aws s3 sync out/ s3://will.moore.fyi --delete
-
-      - name: Invalidate CloudFront
-        env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id YOUR_DISTRIBUTION_ID \
-            --paths "/*"
-```
+If you prefer manual AWS CLI deployment, see [DEPLOYMENT.md](./DEPLOYMENT.md) for:
+- S3 bucket configuration
+- CloudFront setup
+- Manual upload commands
+- GitHub Actions automation
 
 ## Development Workflow
 
@@ -339,10 +316,32 @@ The theme toggle uses localStorage and system preferences:
 
 **Total**: Less than $1/month
 
+## Documentation Files
+
+- **[README.md](./README.md)** - This file, quick start guide
+- **[DEPLOYMENT.md](./DEPLOYMENT.md)** - Detailed AWS deployment guide
+- **[CLAUDE.md](./CLAUDE.md)** - LLM development guide for AI assistants
+- **[TODO.md](./TODO.md)** - Production readiness checklist
+
+## Available Scripts
+
+```bash
+npm run dev          # Start dev server (may have issues, use build instead)
+npm run build        # Build static site to /out
+npm run start        # Start Next.js production server (not needed for S3)
+npm run lint         # Run ESLint
+npm run deploy       # Build + deploy to S3 + invalidate CloudFront
+npm run deploy:only  # Deploy without rebuilding
+```
+
 ## License
 
 MIT License - Feel free to use this template for your own site!
 
 ## Support
 
-For issues or questions, see `TODO.md` for known limitations and `CLAUDE.md` for LLM-assisted development guidance.
+For issues or questions:
+- **Deployment issues**: See [DEPLOYMENT.md](./DEPLOYMENT.md)
+- **Content updates**: Edit `/data/experience.ts` and `/data/about.ts`
+- **Known issues**: See [TODO.md](./TODO.md)
+- **LLM assistance**: See [CLAUDE.md](./CLAUDE.md)
